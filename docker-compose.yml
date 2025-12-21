@@ -1,20 +1,74 @@
-version: "2.2"
+version: '3.8'
+
 services:
-  web:
-    build: .
-    container_name: dujiaoka
+  # 独角数卡应用
+  dujiaoka:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dujiaoka_app
     ports:
-      - "80:80"
-      - "9000:9000"
+      - "9595:80"
     volumes:
-      # 增加此行，则将环境信息进行复制到容器，请确保你存在该文件
-      - ${DATA_DIR}/dujiaoka/.env:/app/.env
-      # 增加此行，避免每次重新创建容器都需要初始化
-      - ${DATA_DIR}/dujiaoka/install.lock:/app/install.lock
-      # 增加此行，确保将上传的资源映射出来，避免容器重新创建后图片不在了
-      - ${DATA_DIR}/dujiaoka/public/uploads:/app/public/uploads
+      # 环境配置文件
+      - ./.env:/var/www/html/.env:ro
+      # 上传文件持久化
+      - ./storage/app/public:/var/www/html/storage/app/public
+      - ./public/uploads:/var/www/html/public/uploads
+      # 日志持久化
+      - ./logs:/var/log
     environment:
-      WEB_DOCUMENT_ROOT: "/app/public"
+      # 数据库配置
+      DB_HOST: host.docker.internal
+      DB_PORT: 3306
+      DB_DATABASE: dujiaoka
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      # Redis配置
+      REDIS_HOST: host.docker.internal
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+      # 应用配置
+      APP_URL: http://127.0.0.1:9595
+      APP_ENV: production
+      APP_DEBUG: false
+
+      # 其他配置
       TZ: Asia/Shanghai
-    tty: true
-    restart: always
+    networks:
+      - dujiaoka_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 数据库初始化服务 (可选)
+  db-init:
+    image: mysql:8.0
+    container_name: dujiaoka_db_init
+    environment:
+      MYSQL_HOST: host.docker.internal
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: dujiaoka
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    profiles:
+      - db-init
+    networks:
+      - dujiaoka_network
+
+networks:
+  dujiaoka_network:
+    driver: bridge
+
+volumes:
+  dujiaoka_uploads:
+    driver: local
+  dujiaoka_logs:
+    driver: local
