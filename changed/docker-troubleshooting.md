@@ -248,6 +248,7 @@ http://127.0.0.1:9595/install
 
 ### 1. Dockerfile
 - ✅ 添加`bash`包到Alpine安装列表
+- ✅ 添加Redis扩展安装
 
 ### 2. docker/entrypoint.sh
 - ✅ 添加nginx日志目录创建和处理逻辑
@@ -288,6 +289,15 @@ docker-compose exec dujiaoka php artisan route:list
 # 应该显示完整的路由列表
 ```
 
+### 5. 验证Redis扩展
+```bash
+# 检查Redis扩展是否加载
+docker-compose exec dujiaoka php -m | grep redis
+
+# 测试Redis连接
+docker-compose exec dujiaoka php -r "if (extension_loaded('redis')) { echo 'Redis extension is loaded\n'; } else { echo 'Redis extension is NOT loaded\n'; }"
+```
+
 ## 🔄 重建容器
 
 如果需要重新构建容器，执行以下命令：
@@ -326,6 +336,7 @@ docker-compose logs -f dujiaoka
 - ✅ 通过 http://127.0.0.1:9595/admin 访问后台
 - ✅ 正常处理Laravel路由和请求
 - ✅ 数据库连接正常
+- ✅ Redis扩展正常工作
 - ✅ 队列任务正常运行
 
 ## 🐛 常见问题排查
@@ -340,6 +351,11 @@ docker-compose logs -f dujiaoka
 2. 验证.env文件中的数据库配置
 3. 确认防火墙设置
 
+### Redis扩展问题
+1. 检查扩展是否安装: `docker-compose exec dujiaoka php -m | grep redis`
+2. 重新构建镜像: `docker-compose build --no-cache`
+3. 验证Redis服务运行状态
+
 ### 静态文件404
 1. 检查nginx配置中的root路径
 2. 验证storage目录权限
@@ -348,4 +364,5 @@ docker-compose logs -f dujiaoka
 ---
 
 **更新时间**: 2025-12-22
-**版本**: 1.0
+**版本**: 2.0
+**主要更新**: 新增Redis扩展问题解决方案，完善故障排查指南
