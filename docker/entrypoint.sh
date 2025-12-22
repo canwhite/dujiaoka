@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 set -e
 
@@ -17,20 +17,32 @@ done
 echo "Redis连接成功"
 
 # 设置权限
-chown -R www-data:www-data /var/www/html
-chmod -R 755 /var/www/html
-chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache
+chown -R www-data:www-data /var/www/html || true
+chmod -R 755 /var/www/html || true
+chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache || true
 
 # 复制虚拟主机配置
-cp /var/www/html/docker/default.conf /etc/nginx/conf.d/default.conf
+mkdir -p /etc/nginx/conf.d || true
+cp /var/www/html/docker/default.conf /etc/nginx/conf.d/default.conf || true
 
 # 清理配置缓存
 php artisan config:clear
 php artisan cache:clear
 php artisan view:clear
 
-# 创建logs目录
-mkdir -p /var/log/php
+# 创建logs目录并修复nginx日志路径
+mkdir -p /var/log/php /var/log/nginx
+
+# 检查并修复符号链接循环
+if [ -L /var/log/nginx ]; then
+    rm -f /var/log/nginx
+    mkdir -p /var/log/nginx
+fi
+
+# 确保nginx日志文件存在且可写
+touch /var/log/nginx/error.log /var/log/nginx/access.log
+chmod 755 /var/log/nginx
+chmod 644 /var/log/nginx/*.log
 
 # 启动supervisor
 exec supervisord -c /etc/supervisor/conf.d/supervisord.conf

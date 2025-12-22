@@ -6,6 +6,8 @@ RUN apk add --no-cache \
     nginx \
     supervisor \
     curl \
+    netcat-openbsd \
+    bash \
     libpng \
     libpng-dev \
     oniguruma-dev \
@@ -20,6 +22,13 @@ RUN apk add --no-cache \
     zlib-dev \
     gmp-dev \
     icu-dev \
+    autoconf \
+    automake \
+    gcc \
+    g++ \
+    make \
+    libtool \
+    imagemagick \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
     gd \
@@ -32,7 +41,8 @@ RUN apk add --no-cache \
     intl \
     exif \
     && pecl install imagick \
-    && docker-php-ext-enable imagick
+    && pecl install redis \
+    && docker-php-ext-enable imagick redis
 
 # 安装Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -52,12 +62,12 @@ RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 777 storage bootstrap/cache
 
 # 复制配置文件
-COPY docker/nginx.conf /etc/nginx/nginx.conf
-COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY docker/php.ini /usr/local/etc/php/conf.d/custom.ini
+COPY ./docker/nginx.conf /etc/nginx/nginx.conf
+COPY ./docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY ./docker/php.ini /usr/local/etc/php/conf.d/custom.ini
 
 # 创建启动脚本
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY ./docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # 暴露端口
