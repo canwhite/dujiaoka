@@ -4,6 +4,8 @@ set -e
 
 # 等待数据库连接
 echo "等待数据库连接..."
+# nc是netcat的缩写，号称网络界的瑞士军刀
+# nc -z host.docker.internal 3306，-z只扫不发，检测端口
 while ! nc -z host.docker.internal 3306; do
     sleep 2
 done
@@ -34,15 +36,25 @@ php artisan view:clear
 mkdir -p /var/log/php /var/log/nginx
 
 # 检查并修复符号链接循环
+#  在 Shell 脚本中，[ ] 是 test 命令的简写，用于条件判断。
 if [ -L /var/log/nginx ]; then
     rm -f /var/log/nginx
     mkdir -p /var/log/nginx
-fi
+fi #if的结束符
 
 # 确保nginx日志文件存在且可写
 touch /var/log/nginx/error.log /var/log/nginx/access.log
 chmod 755 /var/log/nginx
 chmod 644 /var/log/nginx/*.log
 
-# 启动supervisor
+# 启动supervisor，exec就是执行
 exec supervisord -c /etc/supervisor/conf.d/supervisord.conf
+
+# PS: for循环
+# 等待多个服务
+# for port in 3306 6379 9200; do
+#     echo "等待端口 $port..."
+#     while ! nc -z host.docker.internal $port; do
+#         sleep 2
+#     done
+# done
