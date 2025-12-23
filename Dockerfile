@@ -1,7 +1,7 @@
 # 独角数卡 Docker镜像
 FROM php:7.4-fpm-alpine
 
-# 安装系统依赖
+# 安装系统依赖，安装基础包
 RUN apk add --no-cache \
     nginx \
     supervisor \
