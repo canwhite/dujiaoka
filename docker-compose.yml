@@ -38,10 +38,12 @@ services:
 
       # 其他配置
       TZ: Asia/Shanghai
+    #注意：这里是使用，下边的是声明
     networks:
       - dujiaoka_network
       - bepusdt_default
     restart: unless-stopped
+    #这个功能好
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost"]
       interval: 30s
@@ -49,30 +51,30 @@ services:
       retries: 3
 
   # 数据库初始化服务 (可选)
-  db-init:
-    image: mysql:8.0
-    container_name: dujiaoka_db_init
-    environment:
-      MYSQL_HOST: host.docker.internal
-      MYSQL_PORT: 3306
-      MYSQL_DATABASE: dujiaoka
-      MYSQL_USER: root
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - ./database/init:/docker-entrypoint-initdb.d:ro
-    profiles:
-      - db-init
-    networks:
-      - dujiaoka_network
-
+  # db-init:
+  #   image: mysql:8.0
+  #   container_name: dujiaoka_db_init
+  #   environment:
+  #     MYSQL_HOST: host.docker.internal
+  #     MYSQL_PORT: 3306
+  #     MYSQL_DATABASE: dujiaoka
+  #     MYSQL_USER: root
+  #     MYSQL_PASSWORD: ${DB_PASSWORD}
+  #   volumes:
+  #     - ./database/init:/docker-entrypoint-initdb.d:ro
+  #   profiles:
+  #     - db-init
+  #   networks:
+  #     - dujiaoka_network
+#声明
 networks:
   dujiaoka_network:
     driver: bridge
   bepusdt_default:
     external: true
 
-volumes:
-  dujiaoka_uploads:
-    driver: local
-  dujiaoka_logs:
-    driver: local
+# volumes:
+#   dujiaoka_uploads:
+#     driver: local
+#   dujiaoka_logs:
+#     driver: local
