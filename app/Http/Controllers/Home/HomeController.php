@@ -1,5 +1,6 @@
 <?php
 
+#按照路径命名也好找
 namespace App\Http\Controllers\Home;
 
 use App\Exceptions\RuleValidationException;
@@ -31,6 +32,7 @@ class HomeController extends BaseController
 
     public function __construct()
     {
+        // 使用 Laravel 的 app() 函数从服务容器中获取服务实例
         $this->goodsService = app('Service\GoodsService');
         $this->payService = app('Service\PayService');
     }
@@ -70,8 +72,9 @@ class HomeController extends BaseController
                 $goods->open_coupon = 1;
             }
             $formatGoods = $this->goodsService->format($goods);
-            // 加载支付方式.
+            // 加载支付方式.这个访问方式很有意思，常量属于类属性，不算实例属性，所以和类方法访问等同
             $client = Pay::PAY_CLIENT_PC;
+            
             if (app('Jenssegers\Agent')->isMobile()) {
                 $client = Pay::PAY_CLIENT_MOBILE;
             }

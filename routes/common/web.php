@@ -8,13 +8,13 @@
  */
 use Illuminate\Support\Facades\Route;
 
-
+# 1)从中间件和路由开始
 Route::group(['middleware' => ['dujiaoka.boot'],'namespace' => 'Home'], function () {
     // 首页
     Route::get('/', 'HomeController@index');
     // 极验效验
     Route::get('check-geetest', 'HomeController@geetest');
-    // 商品详情
+    // 商品详情，可以看这个购买
     Route::get('buy/{id}', 'HomeController@buy');
     // 提交订单
     Route::post('create-order', 'OrderController@createOrder');
