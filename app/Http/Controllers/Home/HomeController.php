@@ -56,13 +56,14 @@ class HomeController extends BaseController
      * 商品详情
      *
      * @param int $id
+     * @param Request $request
      * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\View\View
      *
      * @author    assimon<ashang@utf8.hk>
      * @copyright assimon<ashang@utf8.hk>
      * @link      http://utf8.hk/
      */
-    public function buy(int $id)
+    public function buy(int $id, Request $request)
     {
         try {
             $goods = $this->goodsService->detail($id);
@@ -72,9 +73,26 @@ class HomeController extends BaseController
                 $goods->open_coupon = 1;
             }
             $formatGoods = $this->goodsService->format($goods);
+
+            // 获取URL中的email参数（支持外部跳转携带邮箱）
+            $presetEmail = $request->input('email', '');
+            if (!empty($presetEmail)) {
+                // 验证邮箱格式
+                if (filter_var($presetEmail, FILTER_VALIDATE_EMAIL) && strlen($presetEmail) <= 254) {
+                    $formatGoods->preset_email = $presetEmail;
+                } else {
+                    $formatGoods->preset_email = '';
+                }
+            } else {
+                $formatGoods->preset_email = '';
+            }
+
+            // 获取来源（可选）
+            $formatGoods->source = $request->input('source', '');
+
             // 加载支付方式.这个访问方式很有意思，常量属于类属性，不算实例属性，所以和类方法访问等同
             $client = Pay::PAY_CLIENT_PC;
-            
+
             if (app('Jenssegers\Agent')->isMobile()) {
                 $client = Pay::PAY_CLIENT_MOBILE;
             }

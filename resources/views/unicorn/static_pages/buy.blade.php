@@ -60,7 +60,29 @@
                                                         <input type="hidden" name="gid" value="{{ $id }}">
                                                         <label for="email" class=" col-form-label">{{ __('dujiaoka.email') }}:</label>
                                                         <input type="email" class="form-control form-control-sm"
-                                                               name="email" id="email" required placeholder="{{ __('dujiaoka.email') }}">
+                                                               name="email" id="email" required placeholder="{{ __('dujiaoka.email') }}"
+                                                               value="{{ $preset_email ?? '' }}"
+                                                               @if(!empty($preset_email)) readonly @endif
+                                                               >
+                                                        @if(!empty($preset_email))
+                                                            <small class="form-text text-muted" style="color: #28a745; margin-top: 10px; display: inline-block;">
+                                                                ✓ 已自动填充充值邮箱
+                                                                @if(!empty($source))
+                                                                    (来自: {{ $source }})
+                                                                @endif
+                                                            </small>
+                                                            <button type="button" class="btn btn-sm btn-outline-warning" style="margin-left: 5px;" onclick="enableEmailEdit()">
+                                                                修改
+                                                            </button>
+                                                            <script>
+                                                            function enableEmailEdit() {
+                                                                var input = document.getElementById('email');
+                                                                input.removeAttribute('readonly');
+                                                                input.value = '';  // 清空内容
+                                                                input.focus();
+                                                            }
+                                                            </script>
+                                                        @endif
                                                     </div>
                                                     <div class="col-xs-12 col-md-4">
                                                         <label for="shop-number"
