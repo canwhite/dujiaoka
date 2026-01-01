@@ -127,4 +127,53 @@ class PayController extends BaseController
 
     }
 
+    /**
+     * ⭐ 从订单信息中提取 from 参数
+     *
+     * @return string
+     *
+     * @author    Claude Code Assistant
+     * @copyright 2024
+     * 
+     */
+    protected function extractFromFromOrder(): string
+    {
+        // 从订单 info 字段中提取 from 参数
+        if (empty($this->order->info)) {
+            return '';
+        }
+
+        // 使用正则表达式提取"来源: xxx"
+        if (preg_match('/来源[:\s]+([^\s\n]+)/', $this->order->info, $matches)) {
+            return $matches[1];
+        }
+
+        return '';
+    }
+
+    /**
+     * ⭐ 重写 render 方法，自动为 qrpay 页面添加 from 和 redirect_urls
+     *
+     * @param string $tpl 模板名称
+     * @param array $data 数据
+     * @param string $pageTitle 页面标题
+     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\View\View
+     *
+     * @author    Claude Code Assistant
+     * @copyright 2024
+     */
+    protected function render(string $tpl, $data = [], string $pageTitle = '')
+    {
+        // ⭐ 如果是 qrpay 页面，自动添加 from 和 redirect_urls
+        if ($tpl === 'static_pages/qrpay') {
+            $data['from'] = $this->extractFromFromOrder();
+            $data['redirect_urls'] = [
+                'novel' => env('NOVEL_REDIRECT_URL', 'http://127.0.0.1:3000'),
+            ];
+        }
+
+        // 调用父类的 render 方法
+        return parent::render($tpl, $data, $pageTitle);
+    }
+
 }

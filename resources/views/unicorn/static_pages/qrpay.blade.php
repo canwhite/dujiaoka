@@ -44,8 +44,34 @@
                 }
                 if (res.code == 200) {
                     window.clearTimeout(timer);
-                    alert("{{ __('dujiaoka.prompt.payment_successful') }}")
-                    setTimeout("window.location.href ='{{ url('detail-order-sn', ['orderSN' => $orderid]) }}'",3000);
+
+                    // ⭐ 获取 from 参数和重定向配置
+                    const from = '{{ $from ?? '' }}';
+                    const redirectUrls = @json($redirect_urls ?? []);
+
+                    // ⭐ 根据 from 决定跳转 URL
+                    let redirectUrl = '{{ url('detail-order-sn', ['orderSN' => $orderid]) }}'; // 默认跳转
+
+                    if (from && redirectUrls[from]) {
+                        // 如果有 from 参数且有对应的重定向 URL，使用它
+                        redirectUrl = redirectUrls[from];
+                    }
+
+                    // ⭐ 支付成功提示
+                    const message = from && redirectUrls[from]
+                        ? "支付成功！点击确定立即返回商户平台，或等待3秒自动跳转"
+                        : "支付成功！点击确定查看订单详情，或等待3秒自动跳转";
+
+                    // 显示确认对话框
+                    if (confirm(message)) {
+                        // 用户点击确定，立即跳转
+                        window.location.href = redirectUrl;
+                    } else {
+                        // 3秒后自动跳转
+                        setTimeout(function() {
+                            window.location.href = redirectUrl;
+                        }, 3000);
+                    }
                 }
             }
         };

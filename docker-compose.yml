@@ -42,6 +42,7 @@ services:
     networks:
       - dujiaoka_network
       - bepusdt_default
+      - novelapi
     restart: unless-stopped
     #这个功能好
     healthcheck:
@@ -66,12 +67,15 @@ services:
   #     - db-init
   #   networks:
   #     - dujiaoka_network
-#声明
+#声明，这里还要多一个network声明，然后让我们能找到
 networks:
   dujiaoka_network:
     driver: bridge
   bepusdt_default:
     external: true
+  novelapi:
+    external: true
+    name: novel-resource-management_novel-network
 
 # volumes:
 #   dujiaoka_uploads:

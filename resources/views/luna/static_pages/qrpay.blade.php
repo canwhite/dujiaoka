@@ -91,11 +91,29 @@
                 }
                 if (res.code === 200) {
                     window.clearTimeout(timer);
-                    layer.alert("{{ __('dujiaoka.prompt.payment_successful') }}", {
+
+                    // ⭐ 获取 from 参数和重定向配置
+                    const from = '{{ $from ?? '' }}';
+                    const redirectUrls = @json($redirect_urls ?? []);
+
+                    // ⭐ 根据 from 决定跳转 URL
+                    let redirectUrl = "{{ url('detail-order-sn', ['orderSN' => $orderid]) }}"; // 默认跳转
+
+                    if (from && redirectUrls[from]) {
+                        // 如果有 from 参数且有对应的重定向 URL，使用它
+                        redirectUrl = redirectUrls[from];
+                    }
+
+                    // ⭐ 根据是否有 from 参数显示不同的提示
+                    const message = from && redirectUrls[from]
+                        ? "支付成功！点击确定立即返回商户平台"
+                        : "支付成功！点击确定查看订单详情";
+
+                    layer.alert(message, {
                         icon    : 1,
                         closeBtn: 0
                     }, function () {
-                        window.location.href = "{{ url('detail-order-sn', ['orderSN' => $orderid]) }}"
+                        window.location.href = redirectUrl;
                     });
                 }
             }
