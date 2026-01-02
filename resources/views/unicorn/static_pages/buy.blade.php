@@ -58,6 +58,9 @@
                                                     </div>
                                                     <div class="col-xs-12 col-md-6">
                                                         <input type="hidden" name="gid" value="{{ $id }}">
+                                                        @if(request()->has('from'))
+                                                            <input type="hidden" name="from" value="{{ request()->input('from') }}">
+                                                        @endif
                                                         <label for="email" class=" col-form-label">{{ __('dujiaoka.email') }}:</label>
                                                         <input type="email" class="form-control form-control-sm"
                                                                name="email" id="email" required placeholder="{{ __('dujiaoka.email') }}"

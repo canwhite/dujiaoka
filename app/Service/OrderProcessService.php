@@ -429,6 +429,12 @@ class OrderProcessService
                 WorkWeiXinPush::dispatch($order);
             }
             // 回调事件
+            \Log::info('订单完成，触发API Hook', [
+                'order_sn' => $order->order_sn,
+                'goods_id' => $order->goods_id,
+                'actual_price' => $order->actual_price,
+                'order_info' => $order->info
+            ]);
             ApiHook::dispatch($order);
             return $completedOrder;
         } catch (\Exception $exception) {
@@ -488,29 +494,179 @@ class OrderProcessService
      */
     public function processAuto(Order $order): Order
     {
-        // 获得卡密
-        $carmis = $this->carmisService->withGoodsByAmountAndStatusUnsold($order->goods_id, $order->buy_amount);
-        // 实际可使用的库存已经少于购买数量了
-        if (count($carmis) != $order->buy_amount) {
-            $order->info = __('dujiaoka.prompt.order_carmis_insufficient_quantity_available');
-            $order->status = Order::STATUS_ABNORMAL;
-            $order->save();
-            return $order;
+        // ⭐ 检查是否需要卡密发货（通过环境变量控制）
+        $useCarmis = env('RECHARGE_USE_CARMIS', 'true');
+
+        \Log::info('自动发货订单处理', [
+            'order_sn' => $order->order_sn,
+            'goods_id' => $order->goods_id,
+            'use_carmis' => $useCarmis,
+            'mode' => (strtolower($useCarmis) === 'false' || $useCarmis === '0') ? '无卡密模式(API Hook)' : '卡密模式'
+        ]);
+
+        if (strtolower($useCarmis) === 'false' || $useCarmis === '0') {
+            // 不使用卡密发货（适用于API Hook充值场景）
+            return $this->processAutoWithoutCarmis($order);
         }
-        $carmisInfo = array_column($carmis, 'carmi');
-        $ids = array_column($carmis, 'id');
-        $order->info = implode(PHP_EOL, $carmisInfo);
+
+        // 使用卡密发货（原有逻辑）
+        return $this->processAutoWithCarmis($order);
+    }
+
+    /**
+     * ⭐ 使用卡密发货的自动处理（带并发安全保护）
+     *
+     * @param Order $order 订单
+     * @return Order 订单
+     */
+    private function processAutoWithCarmis(Order $order): Order
+    {
+        $maxRetries = 3;
+        $retryCount = 0;
+
+        // ⭐ 重试机制：最多重试3次，防止并发冲突
+        while ($retryCount < $maxRetries) {
+            try {
+                // 记录开始日志
+                \Log::info('卡密发放开始', [
+                    'order_sn' => $order->order_sn,
+                    'goods_id' => $order->goods_id,
+                    'buy_amount' => $order->buy_amount,
+                    'retry_count' => $retryCount
+                ]);
+
+                // 1. 获得卡密
+                $carmis = $this->carmisService->withGoodsByAmountAndStatusUnsold($order->goods_id, $order->buy_amount);
+
+                // 2. 实际可使用的库存已经少于购买数量了
+                if (count($carmis) != $order->buy_amount) {
+                    $order->info = __('dujiaoka.prompt.order_carmis_insufficient_quantity_available');
+                    $order->status = Order::STATUS_ABNORMAL;
+                    $order->save();
+
+                    \Log::warning('卡密库存不足', [
+                        'order_sn' => $order->order_sn,
+                        'buy_amount' => $order->buy_amount,
+                        'actual_count' => count($carmis)
+                    ]);
+
+                    return $order;
+                }
+
+                $carmisInfo = array_column($carmis, 'carmi');
+                $ids = array_column($carmis, 'id');
+
+                // 统计循环卡密数量
+                $loopCarmisCount = count(array_filter($carmis, function($carmi) {
+                    return isset($carmi['is_loop']) && $carmi['is_loop'] == 1;
+                }));
+
+                // 3. 更新订单信息
+                // ⭐ 保存原有的from参数信息
+                $fromInfo = '';
+                if (!empty($order->info) && preg_match('/来源[:\s]+([^\s\n]+)/', $order->info, $matches)) {
+                    $fromInfo = "\n来源: " . $matches[1];
+                }
+
+                // 拼接卡密信息和from参数
+                $order->info = implode(PHP_EOL, $carmisInfo) . $fromInfo;
+                $order->status = Order::STATUS_COMPLETED;
+                $order->save();
+
+                // 4. 将卡密设置为已售出（⭐ 乐观锁检查）
+                $affectedRows = $this->carmisService->soldByIDS($ids);
+
+                // ⭐ 乐观锁检查：如果更新的行数不等于预期，说明有并发冲突
+                $expectedRows = count($ids) - $loopCarmisCount; // 循环卡密不会被更新
+                if ($affectedRows != $expectedRows) {
+                    throw new \Exception('并发冲突：卡密状态已被其他事务修改');
+                }
+
+                // 记录成功日志
+                \Log::info('卡密发放成功', [
+                    'order_sn' => $order->order_sn,
+                    'carmis_count' => count($ids),
+                    'loop_carmis_count' => $loopCarmisCount,
+                    'affected_rows' => $affectedRows,
+                    'carmis_ids' => $ids
+                ]);
+
+                // 5. 邮件数据
+                $mailData = [
+                    'created_at' => $order->create_at,
+                    'product_name' => $order->goods->gd_name,
+                    'webname' => dujiaoka_config_get('text_logo', '独角数卡'),
+                    'weburl' => config('app.url') ?? 'http://dujiaoka.com',
+                    'ord_info' => implode('<br/>', $carmisInfo),
+                    'ord_title' => $order->title,
+                    'order_id' => $order->order_sn,
+                    'buy_amount' => $order->buy_amount,
+                    'ord_price' => $order->actual_price,
+                ];
+                $tpl = $this->emailtplService->detailByToken('card_send_user_email');
+                $mailBody = replace_mail_tpl($tpl, $mailData);
+
+                // 6. 邮件发送
+                MailSend::dispatch($order->email, $mailBody['tpl_name'], $mailBody['tpl_content']);
+
+                return $order;
+
+            } catch (\Exception $e) {
+                $retryCount++;
+
+                // 记录错误
+                \Log::warning('卡密发放失败，准备重试', [
+                    'order_sn' => $order->order_sn,
+                    'retry_count' => $retryCount,
+                    'max_retries' => $maxRetries,
+                    'error' => $e->getMessage()
+                ]);
+
+                // 如果重试次数耗尽
+                if ($retryCount >= $maxRetries) {
+                    // 标记订单为异常
+                    $order->info = '卡密发放失败：' . $e->getMessage();
+                    $order->status = Order::STATUS_ABNORMAL;
+                    $order->save();
+
+                    \Log::error('卡密发放最终失败', [
+                        'order_sn' => $order->order_sn,
+                        'total_retries' => $retryCount,
+                        'error' => $e->getMessage()
+                    ]);
+
+                    // 抛出异常，让外层事务回滚
+                    throw $e;
+                }
+
+                // 等待后重试（随机延迟100-200ms，避免多个请求同时重试）
+                usleep(rand(100000, 200000));
+            }
+        }
+
+        return $order;
+    }
+
+    /**
+     * ⭐ 不使用卡密发货的自动处理（适用于API Hook充值）
+     *
+     * @param Order $order 订单
+     * @return Order 订单
+     */
+    private function processAutoWithoutCarmis(Order $order): Order
+    {
+        // 直接标记订单为完成，不发放卡密
+        // 订单详情保持用户输入的充值信息
         $order->status = Order::STATUS_COMPLETED;
         $order->save();
-        // 将卡密设置为已售出
-        $this->carmisService->soldByIDS($ids);
+
         // 邮件数据
         $mailData = [
             'created_at' => $order->create_at,
             'product_name' => $order->goods->gd_name,
             'webname' => dujiaoka_config_get('text_logo', '独角数卡'),
             'weburl' => config('app.url') ?? 'http://dujiaoka.com',
-            'ord_info' => implode('<br/>', $carmisInfo),
+            'ord_info' => str_replace(PHP_EOL, '<br/>', $order->info),
             'ord_title' => $order->title,
             'order_id' => $order->order_sn,
             'buy_amount' => $order->buy_amount,
@@ -520,6 +676,14 @@ class OrderProcessService
         $mailBody = replace_mail_tpl($tpl, $mailData);
         // 邮件发送
         MailSend::dispatch($order->email, $mailBody['tpl_name'], $mailBody['tpl_content']);
+
+        // 记录日志
+        \Log::info('订单自动完成（无卡密发货）', [
+            'order_sn' => $order->order_sn,
+            'goods_id' => $order->goods_id,
+            'actual_price' => $order->actual_price,
+        ]);
+
         return $order;
     }
 

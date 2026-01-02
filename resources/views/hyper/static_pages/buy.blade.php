@@ -59,6 +59,9 @@
                     {{-- 电子邮箱 --}}
                     <div class="buy-title">{{ __('hyper.buy_email') }}</div>
                     <input type="hidden" name="gid" value="{{ $id }}">
+                    @if(request()->has('from'))
+                        <input type="hidden" name="from" value="{{ request()->input('from') }}">
+                    @endif
                     {{-- 接收卡密或通知 --}}
                     <input type="email" name="email" class="form-control" placeholder="{{ __('hyper.buy_input_account') }}">
                 </div>

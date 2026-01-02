@@ -29,7 +29,8 @@ class EpusdtController extends PayController
                 "amount" => (float)$this->order->actual_price,//原价
                 "order_id" => $this->order->order_sn, //可以是用户ID,站内商户订单号,用户名
                 'redirect_url' => route('epusdt-return', ['order_id' => $this->order->order_sn]),
-                'notify_url' => url($this->payGateway->pay_handleroute . '/notify_url'),
+                // ⭐ Docker内部网络：bepusdt通过服务名访问dujiaoka
+                'notify_url' => 'http://dujiaoka/' . trim($this->payGateway->pay_handleroute, '/') . '/notify_url',
             ];
             $parameter['signature'] = $this->epusdtSign($parameter, $this->payGateway->merchant_id);
             $client = new Client([

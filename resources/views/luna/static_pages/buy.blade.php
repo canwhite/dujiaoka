@@ -36,6 +36,9 @@
                     <form class="layui-form layui-form-pane" action="{{ url('create-order') }}" method="post">
                         {{ csrf_field() }}
                         <input type="hidden" name="gid" value="{{ $id }}">
+                        @if(request()->has('from'))
+                            <input type="hidden" name="from" value="{{ request()->input('from') }}">
+                        @endif
                         <div class="layui-col-md8 layui-col-sm12">
                             <div class="goods-msg">
                                 <div class="goods-name">

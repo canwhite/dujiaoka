@@ -68,6 +68,18 @@ class OrderController extends BaseController
             // 设置优惠码
             $this->orderProcessService->setCoupon($coupon);
             $otherIpt = $this->orderService->validatorChargeInput($goods, $request);
+
+            // ⭐ 追加 from 参数到订单详情
+            if ($request->has('from') && !empty($request->input('from'))) {
+                $from = $request->input('from');
+                $otherIpt .= "\n来源: " . $from;
+
+                \Log::info('订单创建：捕获到from参数', [
+                    'from' => $from,
+                    'goods_id' => $goods->id
+                ]);
+            }
+
             $this->orderProcessService->setOtherIpt($otherIpt);
             // 数量
             $this->orderProcessService->setBuyAmount($request->input('by_amount'));
