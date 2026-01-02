@@ -431,23 +431,51 @@ mysql -u root -p dujiaoka -e "SELECT id, gd_name, type, api_hook FROM goods;"
 
 ---
 
-### 2026-01-02 - 三方平台自动充token修复
+### 2026-01-02 - 三方平台自动充token修复 (完整版)
 
-**修复内容**:
-- ✅ P0: API响应验证逻辑（区分HTTP失败和业务失败）
-- ✅ P0: 充值账号智能提取（备用方案使用订单邮箱）
-- ✅ P1: NOVEL_API_URL未配置警告日志
-- ✅ P1: from参数大小写规范化
-- ✅ P2: 环境变量控制卡密发放（RECHARGE_USE_CARMIS）
+**问题描述**: 用户支付成功后，三方平台(novel网站)的token未能自动充值
+
+**修复历程**: 通过三个阶段的渐进调试，彻底解决问题
+
+**阶段1: notify_url 拼接错误修复** (task_recharge_debug_260102_200233)
+- **问题**: bepusdt 日志显示 `http://dujiaokapay/epusdt/notify_url`
+- **根本原因**: URL拼接缺少斜杠
+- **修复方案**: EpusdtController.php:33
+  ```php
+  'notify_url' => 'http://dujiaoka/' . trim($this->payGateway->pay_handleroute, '/') . '/notify_url',
+  ```
+
+**阶段2: ApiHook 逻辑错误修复** (task_deep_debug_recharge_260102_201429)
+- **问题**: Laravel 日志显示 "商品未配置API Hook，跳过"
+- **根本原因**: ApiHook 先检查 api_hook 字段，导致 from=novel 的订单无法执行充值逻辑
+- **修复方案**: ApiHook.php 完整重构
+  - 先提取 from 参数，再决定执行路径
+  - from=novel 时，直接调用 novel-api，不检查 api_hook
+  - from 为空时，才检查 api_hook 配置
+
+**阶段3: 全面分析准备** (task_full_analysis_260102_203046)
+- **状态**: 准备全面分析，但实际未执行
+- **原因**: 前两个阶段的修复已解决问题
+
+**最终修复内容**:
+- ✅ EpusdtController.php:33 - notify_url 拼接修复
+- ✅ ApiHook.php:58-372 - 完整重构路由和充值逻辑
+  - from 参数提取和路由分发
+  - 小说充值 API 调用逻辑
+  - 充值账号智能提取（备用方案）
+  - 响应验证机制（区分 HTTP 失败和业务失败）
+  - 详细日志记录
 
 **影响文件**:
+- `app/Http/Controllers/Pay/EpusdtController.php`
 - `app/Jobs/ApiHook.php`
-- `app/Service/OrderProcessService.php`
-- `.env.example`
 
 **相关文档**:
-- `schema/archive/task_check_recharge_token_260102.md` - 任务文档
-- `schema/archive/test_recharge_fix_260102.md` - 测试指南
+- `schema/task_recharge_debug_260102_200233.md` - 阶段1: notify_url修复
+- `schema/task_deep_debug_recharge_260102_201429.md` - 阶段2: ApiHook逻辑修复
+- `schema/task_full_analysis_260102_203046.md` - 阶段3: 全面分析准备
+- `schema/task_summary_recharge_260102_212535.md` - 总结任务
+- `ddoc/recharge_fix_final_summary.md` - 完整修复总结文档
 
 ---
 
