@@ -106,6 +106,34 @@ class EpusdtController extends PayController
         $oid = $request->get('order_id');
         // 异步通知还没到就跳转了，所以这里休眠2秒
         sleep(2);
+
+        // ⭐ 获取订单信息
+        $order = $this->orderService->detailOrderSN($oid);
+        if (!$order) {
+            return redirect(url('detail-order-sn', ['orderSN' => $oid]));
+        }
+
+        // ⭐ 提取from参数
+        $from = '';
+        if (!empty($order->info)) {
+            if (preg_match('/来源[:\s]+([^\s\n]+)/', $order->info, $matches)) {
+                $from = strtolower(trim($matches[1]));
+            }
+        }
+
+        // ⭐ 根据from参数决定跳转URL
+        if ($from === 'novel') {
+            // 跳转到小说网站
+            $redirectUrl = env('NOVEL_REDIRECT_URL', 'http://127.0.0.1:3000');
+            \Log::info('Epusdt returnUrl：根据from参数重定向', [
+                'order_sn' => $oid,
+                'from' => $from,
+                'redirect_url' => $redirectUrl
+            ]);
+            return redirect()->away($redirectUrl);
+        }
+
+        // 默认跳转到订单详情页
         return redirect(url('detail-order-sn', ['orderSN' => $oid]));
     }
 
