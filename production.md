@@ -1,6 +1,6 @@
 # 独角数卡 (dujiaoka) - 生产环境状态
 
-> **最后更新**: 2026-01-02
+> **最后更新**: 2026-01-06
 > **版本**: v1.0 (基于dujiaoka)
 > **维护者**: Claude Code
 
@@ -236,6 +236,12 @@ NOVEL_REDIRECT_URL=http://127.0.0.1:3000
 5. 验证API响应的业务状态（`response['success']`）
 6. 记录详细日志
 
+**技术细节**:
+- **队列分发**: 使用Laravel的`Dispatchable` trait，通过`ApiHook::dispatch($order)`推送到Redis队列
+- **异步处理**: 在`OrderProcessService::completedOrder()`的事务提交后触发，确保数据一致性
+- **HMAC签名**: 为API请求生成`HMAC-SHA256`签名，防止请求篡改和重放攻击
+- **安全验证**: 验证签名参数包括`actual_price`, `email`, `order_sn`, `timestamp`
+
 **相关文件**:
 - `app/Jobs/ApiHook.php`
 - `app/Http/Controllers/Home/OrderController.php:72-76`
@@ -370,6 +376,52 @@ mysql -u root -p dujiaoka -e "SELECT id, gd_name, type, api_hook FROM goods;"
 
 ## 📝 更新日志
 
+### 2026-01-06 - ApiHook机制技术分析
+
+**分析内容**:
+- computeHMACSignature函数详细分析（HMAC-SHA256签名生成逻辑）
+- ApiHook完整调用路径分析（从支付回调到异步队列分发）
+- Dispatchable trait和Laravel队列机制解析
+- 事务与队列协同设计模式
+
+**技术要点**:
+- 签名参数：`actual_price`, `email`, `order_sn`, `timestamp`
+- 调用路径：支付回调 → completedOrder() → ApiHook::dispatch() → Redis队列 → 异步处理
+- 设计模式：发布-订阅模式，事务提交后触发异步任务
+
+**相关文档**:
+- `schema/task_understand_hmac_260106_163505.md` - 完整技术分析报告
+
+### 2026-01-05 - 多项任务归档
+
+**任务归档**:
+- 三方充值接口请求代码修改（HMAC签名、时间戳校验、幂等性校验）
+- 充值失败日志分析（排查三方平台充值失败原因）
+- from参数传递调查（验证订单中的from参数存储机制）
+- 支付成功重定向修复（修复novel网站支付成功后的跳转问题）
+- TRX配置导出（导出Tron网络配置供其他服务使用）
+- Docker日志分析（分析Docker容器日志，排查问题）
+- Docker监控分析（分析容器资源使用和性能）
+- 配置安装器（安装脚本配置验证和优化）
+- novel-api详细日志分析（诊断充值接口400错误问题）
+- novel-api日志分析续（解决good_id字段类型不匹配问题）
+- Docker构建修复（解决composer install SSL连接和git PATH问题）
+
+**归档状态**:
+- ✅ 所有任务文档已归档至 `schema/archive/`
+- ✅ 相关代码修改已实施
+- ✅ 项目状态已更新
+
+**相关文档**:
+- `schema/archive/task_recharge_api_modify_260105_164313.md` - 三方充值接口修改
+- `schema/archive/task_recharge_failure_analysis_260105_173237.md` - 充值失败分析
+- `schema/archive/task_from_investigation_260103_120932.md` - from参数调查
+- `schema/archive/task_fix_redirect_260103_134417.md` - 重定向修复
+- `schema/archive/task_export_trx_config_260104_152923.md` - TRX配置导出
+- `schema/archive/task_docker_logs_analysis_260105_171814.md` - Docker日志分析
+- `schema/archive/task_docker_monitor_analysis_260105_180836.md` - Docker监控分析
+- `schema/archive/task_config_installer_260103_204830.md` - 配置安装器
+
 ### 2026-01-02 - Docker网络支付通知修复
 
 **问题描述**:
@@ -497,3 +549,4 @@ mysql -u root -p dujiaoka -e "SELECT id, gd_name, type, api_hook FROM goods;"
 - 2026-01-02: 完成三方平台自动充token修复（P0/P1/P2）
 - 2026-01-02: 修复 Docker 网络支付通知问题（notify_url 使用服务名）
 - 2026-01-02: 完成卡密并发安全修复（乐观锁 + 重试机制）
+- 2026-01-06: 完成ApiHook机制技术分析（HMAC签名、调用路径、队列机制）

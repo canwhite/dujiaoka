@@ -162,6 +162,34 @@ class ApiHook implements ShouldQueue
     }
 
     /**
+     * 计算HMAC-SHA256签名
+     * @param array $params 签名参数数组
+     * @param string $secretKey 密钥
+     * @return string hex编码的签名
+     */
+    private function computeHMACSignature(array $params, string $secretKey): string
+    {
+        // 步骤1: 按字母序排序参数
+        ksort($params);
+
+        // 步骤2: 拼接参数 (key=value&key=value)
+        $parts = [];
+        foreach ($params as $key => $value) {
+            //这个叫做数组字面量追加语法，
+            //那正常要如何加呢？
+            //当然php 酷爱静态方法， array_push和array_pop也很常用
+            $parts[] = $key . '=' . $value;
+        }
+        
+        $paramStr = implode('&', $parts);
+
+        // 步骤3: 计算 HMAC-SHA256
+        $signature = hash_hmac('sha256', $paramStr, $secretKey);
+
+        return $signature;
+    }
+
+    /**
      * ⭐ 调用小说充值API
      */
     private function callNovelApi($goodInfo)
@@ -214,13 +242,41 @@ class ApiHook implements ShouldQueue
             return;
         }
 
+        // 计算实际价格（转换为整数，单位：分或token）
+        $actualPriceInt = (int)($this->order->actual_price * 100);
+
         $postdata = [
+            'title' => $this->order->title,
+            'order_sn' => $this->order->order_sn,
+            'email' => $email,
+            'actual_price' => $actualPriceInt,
+            'order_info' => $this->order->info ?? '',
+            'good_id' => (string)$goodInfo->id,
+            'gd_name' => $goodInfo->gd_name,
+            'timestamp' => (string)time()
+        ];
+
+        // 计算HMAC签名
+        $secretKey = env('RECHARGE_SECRET_KEY', '');
+        if (empty($secretKey)) {
+            \Log::warning('RECHARGE_SECRET_KEY未配置，使用默认值，生产环境请务必配置', [
+                'order_sn' => $this->order->order_sn
+            ]);
+            $secretKey = 'your-secret-key-change-in-production';
+        }
+
+        // 构建签名参数（按字母序排序）
+        $signParams = [
+            'actual_price' => (string)$actualPriceInt,
             'email' => $email,
             'order_sn' => $this->order->order_sn,
-            'amount' => $this->order->actual_price,
-            'good_name' => $goodInfo->gd_name,
-            'timestamp' => time()
+            'timestamp' => $postdata['timestamp']  // 已经是字符串
         ];
+
+        $signature = $this->computeHMACSignature($signParams, $secretKey);
+
+        // 添加签名到请求数据
+        $postdata['signature'] = $signature;
 
         \Log::info('准备发送小说充值API请求', [
             'order_sn' => $this->order->order_sn,
@@ -277,7 +333,7 @@ class ApiHook implements ShouldQueue
             'email' => $this->order->email,
             'actual_price' => $this->order->actual_price,
             'order_info' => $this->order->info,
-            'good_id' => $goodInfo->id,
+            'good_id' => (string)$goodInfo->id,
             'gd_name' => $goodInfo->gd_name
         ];
 
