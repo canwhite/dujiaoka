@@ -536,6 +536,8 @@ mysql -u root -p dujiaoka -e "SELECT id, gd_name, type, api_hook FROM goods;"
 ### 项目文档
 - `schema/archive/` - 已完成的任务归档
 - `ddoc/` - 详细的技术文档
+  - `Docker首次启动与MySQL初始化指南.md` - Docker启动和数据库初始化完整指南
+  - `init-db.sh脚本解析文档.md` - init-db.sh脚本详细解析和使用指南
 - `openspec/` - OpenSpec变更管理
 
 ### 外部文档
@@ -550,3 +552,5 @@ mysql -u root -p dujiaoka -e "SELECT id, gd_name, type, api_hook FROM goods;"
 - 2026-01-02: 修复 Docker 网络支付通知问题（notify_url 使用服务名）
 - 2026-01-02: 完成卡密并发安全修复（乐观锁 + 重试机制）
 - 2026-01-06: 完成ApiHook机制技术分析（HMAC签名、调用路径、队列机制）
+- 2026-01-19: 完成Docker启动与MySQL初始化指南（探索Docker配置和数据库初始化流程）
+- 2026-01-19: 完成init-db.sh脚本检查与解析文档编写（检查脚本问题并提供详细使用指南）
