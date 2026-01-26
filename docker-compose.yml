@@ -39,6 +39,7 @@ services:
       # 其他配置
       TZ: Asia/Shanghai
     #这个相当于给本地地址加入电话簿，如果有desktop软件的话，默认就有了
+    #这一行相当于将本机地址手动加入host电话簿
     extra_hosts:
       - host.docker.internal:host-gateway
     #注意：这里是使用，下边的是声明
