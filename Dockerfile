@@ -2,23 +2,25 @@
 FROM php:7.4-fpm-alpine
 
 # 安装系统依赖，安装基础包
-RUN apk add --no-cache \
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
+    apk update && apk add --no-cache \
     nginx \
     supervisor \
     curl \
     netcat-openbsd \
     bash \
+    && apk add --no-cache \
     libpng \
     libpng-dev \
-    oniguruma-dev \
-    libxml2-dev \
-    zip \
-    unzip \
-    libzip-dev \
-    imagemagick-dev \
     jpeg-dev \
     libjpeg-turbo-dev \
     freetype-dev \
+    imagemagick-dev \
+    imagemagick \
+    && apk add --no-cache \
+    oniguruma-dev \
+    libxml2-dev \
+    libzip-dev \
     zlib-dev \
     gmp-dev \
     icu-dev \
@@ -28,7 +30,8 @@ RUN apk add --no-cache \
     g++ \
     make \
     libtool \
-    imagemagick \
+    zip \
+    unzip \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
     gd \
