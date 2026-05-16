@@ -5,15 +5,15 @@ set -e
 # 等待数据库连接
 echo "等待数据库连接..."
 # nc是netcat的缩写，号称网络界的瑞士军刀
-# nc -z host.docker.internal 3306，-z只扫不发，检测端口
-while ! nc -z host.docker.internal 3306; do
+# nc -z 172.16.61.157 3306，-z只扫不发，检测端口
+while ! nc -z 172.16.61.157 3306; do
     sleep 2
 done
 echo "数据库连接成功"
 
 # 等待Redis连接
 echo "等待Redis连接..."
-while ! nc -z host.docker.internal 6379; do
+while ! nc -z 172.16.61.157 6379; do
     sleep 2
 done
 echo "Redis连接成功"
@@ -54,7 +54,7 @@ exec supervisord -c /etc/supervisor/conf.d/supervisord.conf
 # 等待多个服务
 # for port in 3306 6379 9200; do
 #     echo "等待端口 $port..."
-#     while ! nc -z host.docker.internal $port; do
+#     while ! nc -z 172.16.61.157 $port; do
 #         sleep 2
 #     done
 # done

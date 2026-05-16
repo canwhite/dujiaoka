@@ -43,8 +43,7 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
     opcache \
     intl \
     exif \
-    && pecl install imagick \
-    && pecl install redis \
+    && pecl update channels && pecl install imagick redis \
     && docker-php-ext-enable imagick redis
 
 # 安装Composer
